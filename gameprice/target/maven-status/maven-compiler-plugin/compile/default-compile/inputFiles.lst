@@ -1,8 +1,0 @@
-/home/squake/workspace/debezium-syndesis-demo/gameprice/src/main/java/io/syndesis/demo/debezium/gameprice/repository/GamePriceRepository.java
-/home/squake/workspace/debezium-syndesis-demo/gameprice/src/main/java/io/syndesis/demo/debezium/gameprice/controller/GamePriceRestController.java
-/home/squake/workspace/debezium-syndesis-demo/gameprice/src/main/java/io/syndesis/demo/debezium/gameprice/service/GamePriceService.java
-/home/squake/workspace/debezium-syndesis-demo/gameprice/src/main/java/io/syndesis/demo/debezium/gameprice/configuration/GamePriceBootConfiguration.java
-/home/squake/workspace/debezium-syndesis-demo/gameprice/src/main/java/io/syndesis/demo/debezium/gameprice/service/GamePriceServiceImpl.java
-/home/squake/workspace/debezium-syndesis-demo/gameprice/src/main/java/io/syndesis/demo/debezium/gameprice/domain/GamePrice.java
-/home/squake/workspace/debezium-syndesis-demo/gameprice/src/main/java/io/syndesis/demo/debezium/DemoApplication.java
-/home/squake/workspace/debezium-syndesis-demo/gameprice/src/main/java/io/syndesis/demo/debezium/gameprice/configuration/SwaggerConfig.java
