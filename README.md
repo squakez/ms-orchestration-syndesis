@@ -1,12 +1,45 @@
-# IPAAS Syndesis meets Debezium
+# IPAAS Syndesis microservices orchestration
 
-Follow these instructions to see how the changes to an Order service are propagated to a User service. User and Order are independent microservices with independent databases, no microservice business logic has been harmed during the experiments!
+Follow these instructions to see how to build a simple game giveaway notification system by composing a microservices pipeline.
+`GamePrice` and `UserPreference` are independent microservices with independent databases, no microservice business logic has been harmed during the experiments!
 
 I am using [minishift](https://www.okd.io/minishift/) as local openshift development cluster; [httpie](https://httpie.org/) as http CLI.
 
 * Deploy [Debezium](https://debezium.io/) (version 0.10) on a local cluster: https://debezium.io/documentation/reference/1.0/operations/openshift.html. You will use `debezium-connect` pod to enable your change data capture.
-The database instance is shared for simplicity, but you can use 2 separate instances.
+The database instance used there (`mysql`) is shared for simplicity, but you can create and use 2 separate instances.
 * Deploy [Syndesis](https://syndesis.io/) (version 2.0) on a local cluster: https://syndesis.io/quickstart/
+* Create `gameprice` and `userpreference` databases
+```
+# Create databases
+oc exec -it $(oc get pods -o custom-columns=NAME:.metadata.name --no-headers -l app=mysql --field-selector status.phase=Running) -- bash -c 'mysql -u root -p$MYSQL_ROOT_PASSWORD -e "CREATE Database gameprice"'
+oc exec -it $(oc get pods -o custom-columns=NAME:.metadata.name --no-headers -l app=mysql --field-selector status.phase=Running) -- bash -c 'mysql -u root -p$MYSQL_ROOT_PASSWORD -e "CREATE Database userpreference"'
+```
+* Create `gameprice` CDC connector
+```
+# Create CDC connector
+oc exec -i -c kafka broker-kafka-0 -- curl -X POST \
+    -H "Accept:application/json" \
+    -H "Content-Type:application/json" \
+    http://debezium-connect-api:8083/connectors -d @- <<'EOF'
+
+{
+    "name": "gameprice-connector",
+    "config": {
+        "connector.class": "io.debezium.connector.mysql.MySqlConnector",
+        "tasks.max": "1",
+        "database.hostname": "mysql",
+        "database.port": "3306",
+        "database.user": "debezium",
+        "database.password": "dbz",
+        "database.server.id": "184054",
+        "database.server.name": "dbserver1",
+        "database.whitelist": "gameprice",
+        "database.history.kafka.bootstrap.servers": "broker-kafka-bootstrap:9092",
+        "database.history.kafka.topic": "schema-changes.gameprice"
+    }
+}
+EOF
+```
 * Deploy `userPreference` microservice pod
 ```
 cd userPreference
@@ -17,113 +50,59 @@ mvn clean fabric8:deploy -P openshift
 cd gamePrice
 mvn clean fabric8:deploy -P openshift
 ```
-* Create a `Debezium` integration on `Syndesis` mapping any new gamePrice creation to a userPreference REST _addOrder_ endpoint call and any gamePrice deletion to a userPreference REST _deleteOrder_ endpoint call. Wait for the integration to be up and running on your local openshift.
+* Create the source and destination connections we'll use for the integration: a `gameprice` CDC (to capture price drop), a `userpreference` API (to list users) and an email service (to send notification).
 
-_Create a debezium connection, setting kafka broker cluster URI_\
-![image 1](/img/1-connection.png)
+![image 1](/img/1-connections.png)
 
-_Create a new integration with the debezium connection source: select the gamePrice table change data topic and the schema change topic_\
-![image 2](/img/1-1-integration-subscribe.png)
+* Create an integration to capture the event changes on `GamePrice` domain, load a list of `UserPreference` and send an email to them. Wait for the integration to be up and running on your local openshift.
 
-_Select a conditional flow as destination source_\
-![image 3](/img/2-integration-conditional-flow.png)
+* Create a new integration with the debezium connection source: select the `gameprice` table change data topic and the schema change topic
 
-_Define the condition events you want to capture: an gamePrice create and an gamePrice delete_\
-![image 4](/img/3-conditions.png)
+![image 2](/img/2-debezium-source.png)
 
-_Conditions will look like these:_\
-![image 5](/img/4-conditions-set.png)
+* Select a conditional flow as destination source
 
-_Select the create condition branch_\
-![image 6](/img/5-create-condition.png)
+![image 3](/img/3-conditional-flow.png)
 
-_Set the action to perform when a new gamePrice is created: call the User REST API_\
-![image 7](/img/6-userPreference-api-addorder.png)
+* Define the steps needed to filter the event promotions (price equals to 0), list users, and send them an email according to a well defined template
 
-_Finally map the data coming from change data stream to the ones expected by the REST API_\
-![image 8](/img/7-data-mapping.png)
+![image 4](/img/4-flow.png)
 
-You must repeat the process for the delete condition branch as well. Here I leave the [whole screencast](/img/demo-screencast.mp4) for all details.
+* Each step may need to map the result coming from the previous step, as for example mapping the `GamePrice` id coming from the change data event into a request parameter expected by the `UserPreference` API
 
-* Create a userPreference (host name can be different, checkout yours)
+![image 5](/img/5-data-mapper.png)
+
+
+* Create `Game`s and `UserPreference`s (host name can be different, checkout yours)
 ```
-http POST http://userPreference-syndesis-services.192.168.42.139.nip.io/userPreference userId=123 userName=Foo
+http POST http://userpreference-syndesis-services.192.168.42.139.nip.io/userpreference email="pcongius@redhat.com" userId=3 userName="Pasquale@redhat"
+http PUT http://gameprice-syndesis-services.192.168.42.139.nip.io/gameprice/ gameId=1 gamePrice=20 gameTitle="Doom"
+http PUT http://gameprice-syndesis-services.192.168.42.139.nip.io/gameprice/ gameId=2 gamePrice=29 gameTitle="Doom 2"
+http PUT http://gameprice-syndesis-services.192.168.42.139.nip.io/gameprice/ gameId=3 gamePrice=19 gameTitle="Civilization"
+...
+http POST http://userpreference-syndesis-services.192.168.42.139.nip.io/userpreference/3/game gameId=3 gameTitle=Civilization
+```
+* Check the `UserPreference` list was updated correctly
+```
+http GET http://userpreference-syndesis-services.192.168.42.139.nip.io/userpreference/?gameLiked=3
 
-{
-    "orders": [],
-    "userId": 123,
-    "userName": "Foo"
-}
-```
-* Create a gamePrice
-```
-http POST http://gamePrice-syndesis-services.192.168.42.139.nip.io/gamePrice orderId=987 orderPrice=100 userId=123
+[
+    {
+        "email": "pcongius@redhat.com",
+        "gamesLikedIds": [
+            "2",
+            "3"
+        ],
+        "userId": 3,
+        "userName": "Pasquale@redhat"
+    }
+]
 
-{
-    "items": [],
-    "orderId": 987,
-    "orderPrice": 100,
-    "userId": 123
-}
 ```
-* Check the gamePrice list was updated correctly
+* Set a `GamePrice` to 0
 ```
-http http://userPreference-syndesis-services.192.168.42.139.nip.io/userPreference/123
+http PUT http://gameprice-syndesis-services.192.168.42.139.nip.io/gameprice/ gameId=3 gamePrice=0 gameTitle="Civilization"
+```
+* Checkout the email inbox
 
-{
-    "orders": [
-        "987"
-    ],
-    "userId": 123,
-    "userName": "Foo"
-}
-```
-* Delete a gamePrice
-```
-http DELETE http://gamePrice-syndesis-services.192.168.42.139.nip.io/gamePrice/987
-```
-* Check the gamePrice list was updated correctly
-```
-http http://userPreference-syndesis-services.192.168.42.139.nip.io/userPreference/123
-
-{
-    "orders": [],
-    "userId": 123,
-    "userName": "Foo"
-}
-```
-* Stop the `debezium-connect` pod to simulate a downtime / network issue
-* Create an gamePrice
-```
-http POST http://gamePrice-syndesis-services.192.168.42.139.nip.io/gamePrice orderId=988 orderPrice=100 userId=123
-
-{
-    "items": [],
-    "orderId": 988,
-    "orderPrice": 100,
-    "userId": 123
-}
-```
-* Check the gamePrice list is not yet updated
-```
-http http://userPreference-syndesis-services.192.168.42.139.nip.io/userPreference/123
-
-{
-    "orders": [],
-    "userId": 123,
-    "userName": "Foo"
-}
-```
-* Start the `debezium-connect` pod again
-* Wait a few seconds the process to start up and check the gamePrice list was updated correctly
-```
-http http://userPreference-syndesis-services.192.168.42.139.nip.io/userPreference/123
-
-{
-    "orders": [
-        "988"
-    ],
-    "userId": 123,
-    "userName": "Foo"
-}
-```
+![image 6](/img/6-email.png)
