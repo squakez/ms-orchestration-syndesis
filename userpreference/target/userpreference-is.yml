@@ -1,0 +1,15 @@
+---
+apiVersion: v1
+kind: List
+items:
+- apiVersion: image.openshift.io/v1
+  kind: ImageStream
+  metadata:
+    name: userpreference
+  spec:
+    tags:
+    - from:
+        kind: ImageStreamImage
+        name: userpreference@sha256:1df7344c67fdaebe770d80709eb0450020a7f181f81e91f5c55c2bf390863772
+        namespace: syndesis-services
+      name: latest

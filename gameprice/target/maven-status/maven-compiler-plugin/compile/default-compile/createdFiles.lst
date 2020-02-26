@@ -1,0 +1,8 @@
+io/syndesis/demo/debezium/gameprice/configuration/SwaggerConfig.class
+io/syndesis/demo/debezium/gameprice/controller/GamePriceRestController.class
+io/syndesis/demo/debezium/gameprice/repository/GamePriceRepository.class
+io/syndesis/demo/debezium/gameprice/service/GamePriceServiceImpl.class
+io/syndesis/demo/debezium/DemoApplication.class
+io/syndesis/demo/debezium/gameprice/domain/GamePrice.class
+io/syndesis/demo/debezium/gameprice/configuration/GamePriceBootConfiguration.class
+io/syndesis/demo/debezium/gameprice/service/GamePriceService.class

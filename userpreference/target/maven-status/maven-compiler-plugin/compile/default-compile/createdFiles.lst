@@ -1,0 +1,10 @@
+io/syndesis/demo/debezium/demo/userpreference/repository/UserPreferenceRepository.class
+io/syndesis/demo/debezium/demo/userpreference/controller/UserPreferenceRestController.class
+io/syndesis/demo/debezium/demo/DemoApplication.class
+io/syndesis/demo/debezium/demo/userpreference/domain/GameDTO.class
+io/syndesis/demo/debezium/demo/userpreference/configuration/SwaggerConfig.class
+io/syndesis/demo/debezium/demo/userpreference/configuration/UserPreferenceBootConfiguration.class
+io/syndesis/demo/debezium/demo/userpreference/domain/UserPreference.class
+io/syndesis/demo/debezium/demo/userpreference/repository/StringListConverter.class
+io/syndesis/demo/debezium/demo/userpreference/service/UserPreferenceServiceImpl.class
+io/syndesis/demo/debezium/demo/userpreference/service/UserPreferenceService.class
